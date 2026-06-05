@@ -14,7 +14,7 @@ if (-not (Test-Path "venv\Scripts\Activate.ps1")) {
 
 $ollamaRunning = $false
 try {
-    $resp = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -Method GET -TimeoutSec 3 -ErrorAction Stop
+    $resp = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:11434/api/tags" -Method GET -TimeoutSec 3 -ErrorAction Stop
     $ollamaRunning = $resp.StatusCode -eq 200
 } catch {
     $ollamaRunning = $false
@@ -27,7 +27,7 @@ if (-not $ollamaRunning) {
     $retry = 0
     while ($retry -lt 10) {
         try {
-            $resp = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -Method GET -TimeoutSec 2 -ErrorAction Stop
+            $resp = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:11434/api/tags" -Method GET -TimeoutSec 2 -ErrorAction Stop
             if ($resp.StatusCode -eq 200) { break }
         } catch {}
         $retry++
@@ -44,25 +44,26 @@ if (-not $ollamaRunning) {
 }
 
 Write-Host "Starting AITEACHER server..." -ForegroundColor Yellow
-$uvicornJob = Start-Job -ScriptBlock {
-    param($dir)
-    Set-Location $dir
-    . .\venv\Scripts\Activate.ps1
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-} -ArgumentList $rootDir
+$uvicornLog = Join-Path $rootDir "uvicorn.log"
+$activatePath = Join-Path $rootDir "venv\Scripts\Activate.ps1"
+$mainPath = Join-Path $rootDir "main.py"
+$uvicornCmd = "powershell -NoLogo -NoProfile -Command `"& { . '$activatePath'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload }`""
+$uvicornProc = Start-Process -FilePath "powershell" -ArgumentList "-NoLogo -NoProfile -Command `". '$activatePath'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload`"" -WindowStyle Hidden -PassThru -RedirectStandardOutput $uvicornLog -RedirectStandardError $uvicornLog
 
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 $retry = 0
-while ($retry -lt 15) {
+while ($retry -lt 30) {
     try {
-        $resp = Invoke-WebRequest -Uri "http://localhost:8000" -Method GET -TimeoutSec 2 -ErrorAction Stop
+        $resp = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8000" -Method GET -TimeoutSec 2 -ErrorAction Stop
         if ($resp.StatusCode -eq 200) { break }
     } catch {}
     $retry++
     Start-Sleep -Seconds 1
 }
-if ($retry -ge 15) {
-    Write-Host "ERROR: Server did not start in 15 seconds" -ForegroundColor Red
+if ($retry -ge 30) {
+    Write-Host "ERROR: Server did not start in 35 seconds." -ForegroundColor Red
+    Write-Host "Check log: $uvicornLog" -ForegroundColor Yellow
+    Get-Content -Path $uvicornLog -Tail 20 -ErrorAction SilentlyContinue
     exit 1
 }
 Write-Host "AITEACHER server is running" -ForegroundColor Green
@@ -124,9 +125,12 @@ Write-Host "Stopping processes..." -ForegroundColor Yellow
 if ($cfProc -and -not $cfProc.HasExited) {
     Stop-Process -Id $cfProc.Id -Force -ErrorAction SilentlyContinue
 }
-if ($uvicornJob.State -eq "Running") {
-    Stop-Job $uvicornJob -ErrorAction SilentlyContinue
-    Remove-Job $uvicornJob -ErrorAction SilentlyContinue
+if ($uvicornProc -and -not $uvicornProc.HasExited) {
+    Stop-Process -Id $uvicornProc.Id -Force -ErrorAction SilentlyContinue
+    $uvicornChildren = Get-WmiObject Win32_Process -Filter "ParentProcessId=$($uvicornProc.Id)" 2>$null
+    if ($uvicornChildren) {
+        $uvicornChildren | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    }
 }
 if ($ollamaProc -and -not $ollamaProc.HasExited) {
     Write-Host "Stop Ollama too? (y/N): " -ForegroundColor Yellow -NoNewline
