@@ -44,28 +44,24 @@ if (-not $ollamaRunning) {
 }
 
 Write-Host "Starting AITEACHER server..." -ForegroundColor Yellow
-$uvicornOut = Join-Path $rootDir "uvicorn_out.log"
-$uvicornErr = Join-Path $rootDir "uvicorn_err.log"
-$activatePath = Join-Path $rootDir "venv\Scripts\Activate.ps1"
-$mainPath = Join-Path $rootDir "main.py"
-$uvicornProc = Start-Process -FilePath "powershell" -ArgumentList "-NoLogo -NoProfile -Command `". '$activatePath'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload`"" -WindowStyle Hidden -PassThru -RedirectStandardOutput $uvicornOut -RedirectStandardError $uvicornErr
+$pythonExe = Join-Path $rootDir "venv\Scripts\python.exe"
+$uvicornProc = Start-Process -FilePath $pythonExe -ArgumentList "-m uvicorn main:app --host 0.0.0.0 --port 8000" -WorkingDirectory $rootDir -WindowStyle Hidden -PassThru
 
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 8
 $retry = 0
-while ($retry -lt 30) {
+while ($retry -lt 60) {
     try {
-        $resp = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8000" -Method GET -TimeoutSec 2 -ErrorAction Stop
+        $resp = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8000" -Method GET -TimeoutSec 3 -ErrorAction Stop
         if ($resp.StatusCode -eq 200) { break }
     } catch {}
     $retry++
-    Start-Sleep -Seconds 1
+    Start-Sleep -Seconds 2
 }
-if ($retry -ge 30) {
-    Write-Host "ERROR: Server did not start in 35 seconds." -ForegroundColor Red
-    Write-Host "Check logs:" -ForegroundColor Yellow
-    Write-Host "  stdout: $uvicornOut" -ForegroundColor Yellow
-    Write-Host "  stderr: $uvicornErr" -ForegroundColor Yellow
-    Get-Content -Path $uvicornErr -Tail 20 -ErrorAction SilentlyContinue
+if ($retry -ge 60) {
+    Write-Host "ERROR: Server did not start in 2 minutes." -ForegroundColor Red
+    Write-Host "Check if port 8000 is free or run manually:" -ForegroundColor Yellow
+    Write-Host "  cd $rootDir" -ForegroundColor Yellow
+    Write-Host "  .\venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000" -ForegroundColor Yellow
     exit 1
 }
 Write-Host "AITEACHER server is running" -ForegroundColor Green
