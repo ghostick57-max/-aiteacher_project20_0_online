@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AITEACHER Admin</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f1f5f9; --card: #fff; --text: #1e293b; --text2: #64748b; --border: #e2e8f0; --red: #ef4444; --green: #22c55e; --gray: #94a3b8; --orange: #f59e0b; --sidebar: #1e293b; --side-text: #e2e8f0; --side-hover: #334155; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100dvh; height: 100vh; overflow: hidden; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* Login */
+        #loginScreen { display: flex; align-items: center; justify-content: center; height: 100dvh; height: 100vh; padding: 1rem; }
+        #loginScreen.hidden { display: none; }
+        .login-card { background: var(--card); border-radius: 16px; padding: clamp(1.2rem, 5vw, 2.5rem); width: 100%; max-width: 360px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+        .login-card h1 { font-size: clamp(1.2rem, 4vw, 1.4rem); margin-bottom: 0.3rem; }
+        .login-card p { color: var(--text2); margin-bottom: 1.5rem; font-size: clamp(0.8rem, 2.5vw, 0.9rem); }
+        .login-card input { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; outline: none; margin-bottom: 0.8rem; }
+        .login-card input:focus { border-color: var(--primary); }
+        .login-card button { width: 100%; padding: 0.8rem; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        .login-card button:hover { opacity: 0.9; }
+        .login-error { color: var(--red); font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+
+        /* App layout */
+        #app { display: none; height: 100dvh; height: 100vh; }
+        #app.active { display: flex; flex-direction: column; }
+        .topbar { background: var(--sidebar); color: var(--side-text); padding: 0.8rem 1.2rem; display: flex; align-items: center; gap: 0.8rem; font-weight: 600; }
+        .topbar .title { flex: 1; font-size: 1rem; }
+        .topbar .user { font-size: 0.85rem; opacity: 0.7; }
+        .topbar button { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.3rem 0.7rem; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }
+        .topbar .hamburger { display: none; background: none; border: none; color: var(--side-text); font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
+        .layout { display: flex; height: calc(100dvh - 48px); height: calc(100vh - 48px); }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9; }
+        .sidebar { width: 220px; min-width: 220px; background: var(--sidebar); color: var(--side-text); overflow-y: auto; transition: transform 0.3s ease; }
+        .sidebar .section-title { padding: 0.8rem 1rem 0.3rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; }
+        .sidebar .item { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; transition: background 0.1s; }
+        .sidebar .item:hover { background: var(--side-hover); }
+        .sidebar .item.active { background: var(--side-hover); border-left: 3px solid var(--primary); }
+        .sidebar .item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .sidebar .item .dot.on { background: var(--green); }
+        .sidebar .item .dot.off { background: var(--gray); }
+        .sidebar .item .dot.suspended { background: var(--orange); }
+        .sidebar .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .sidebar .item .badge { font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; margin-left: 0.2rem; color: #fff; flex-shrink: 0; }
+        .sidebar .item .badge.blocked { background: var(--red); }
+        .sidebar .item .badge.suspended { background: var(--orange); }
+        .sidebar .item .count { font-size: 0.75rem; opacity: 0.5; flex-shrink: 0; }
+        .main { flex: 1; overflow-y: auto; padding: clamp(0.8rem, 3vw, 1.2rem); padding-bottom: calc(clamp(0.8rem, 3vw, 1.2rem) + env(safe-area-inset-bottom, 0px)); }
+
+        /* Stats summary */
+        .stats-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .stat-card { background: var(--card); border-radius: 12px; padding: 1rem 1.5rem; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .stat-card .num { font-size: 1.6rem; font-weight: 700; color: var(--primary); }
+        .stat-card .label { font-size: 0.8rem; color: var(--text2); margin-top: 0.2rem; }
+
+        /* Dashboard sections */
+        .dash-section { background: var(--card); border-radius: 12px; padding: 0.8rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .dash-section h3 { font-size: 0.95rem; margin-bottom: 0.6rem; }
+        .scroll-wrap { max-height: 320px; overflow-y: auto; }
+        .scroll-wrap::-webkit-scrollbar { width: 5px; }
+        .scroll-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .scroll-wrap table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .scroll-wrap th { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 2px solid var(--border); color: var(--text2); font-weight: 600; white-space: nowrap; }
+        .scroll-wrap td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        .scroll-wrap tr:last-child td { border-bottom: none; }
+        .scroll-wrap tr:hover td { background: #f8fafc; }
+        .scroll-wrap .status-badge { display: inline-block; font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
+        .scroll-wrap .status-badge.online { background: #dcfce7; color: #16a34a; }
+        .scroll-wrap .status-badge.offline { background: #f1f5f9; color: var(--text2); }
+        .scroll-wrap .status-badge.blocked { background: #fef2f2; color: var(--red); }
+        .scroll-wrap .status-badge.suspended { background: #fef3c7; color: #d97706; }
+
+        /* User detail */
+        .user-detail .info { background: var(--card); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .user-detail .info .ava { width: 48px; height: 48px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 600; overflow: hidden; }
+        .user-detail .info .ava img { width: 100%; height: 100%; object-fit: cover; }
+        .user-detail .info .fields { flex: 1; }
+        .user-detail .info .fields div { font-size: 0.85rem; color: var(--text2); margin-top: 0.2rem; }
+        .user-detail .info .fields .name { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+        .user-detail .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .user-detail .actions button { padding: 0.5rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 500; }
+        .user-detail .actions .block { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+        .user-detail .actions .block.active { background: var(--red); color: #fff; border-color: var(--red); }
+        .user-detail .actions .suspend { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+        .user-detail .actions .suspend.active { background: #d97706; color: #fff; border-color: #d97706; }
+        .user-detail .actions .delete { background: var(--red); color: #fff; }
+        .user-detail .history { background: var(--card); border-radius: 12px; padding: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .user-detail .history .empty { text-align: center; color: var(--text2); padding: 2rem; }
+        .user-detail .msg-row { padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; line-height: 1.5; }
+        .user-detail .msg-row:last-child { border-bottom: none; }
+        .user-detail .msg-row .meta { font-size: 0.75rem; color: var(--text2); margin-bottom: 0.2rem; }
+        .user-detail .msg-row .meta .subj { display: inline-block; background: #dbeafe; color: var(--primary); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; }
+        .user-detail .msg-row .meta .role { font-weight: 600; }
+        .user-detail .msg-row .meta .role.u { color: var(--primary); }
+        .user-detail .msg-row .meta .role.a { color: var(--green); }
+        .user-detail .msg-row .content { word-break: break-word; max-height: 60px; overflow: hidden; cursor: pointer; }
+        .user-detail .msg-row .content.expanded { max-height: none; }
+
+        @media (max-width: 1024px) {
+            .sidebar { width: 200px; min-width: 200px; }
+        }
+        @media (max-width: 768px) {
+            .topbar .hamburger { display: block; }
+            .sidebar { position: fixed; top: 48px; left: 0; bottom: 0; z-index: 10; transform: translateX(-100%); width: 220px; min-width: 220px; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay { display: block; }
+            .sidebar-overlay.hidden { display: none; }
+            .scroll-wrap { max-height: 260px; }
+            .stats-summary { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+        }
+        @media (max-width: 480px) {
+            .topbar { padding: 0.6rem 0.8rem; gap: 0.5rem; }
+            .topbar .title { font-size: 0.85rem; }
+            .topbar .user { font-size: 0.75rem; }
+            .stat-card { padding: 0.7rem 0.8rem; }
+            .stat-card .num { font-size: 1.3rem; }
+            .login-card { padding: 1.2rem; }
+            .user-detail .actions button { font-size: 0.78rem; padding: 0.4rem 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen">
+        <div class="login-card">
+            <h1>🛡 AITEACHER</h1>
+            <p>Панель администратора</p>
+            <input type="text" id="loginInput" placeholder="Логин" autocomplete="off">
+            <input type="password" id="passwordInput" placeholder="Пароль">
+            <button id="loginBtn">Войти</button>
+            <div class="login-error" id="loginError"></div>
+        </div>
+    </div>
+
+    <div id="app">
+        <div class="topbar">
+            <button class="hamburger" id="hamburgerBtn" aria-label="Меню">☰</button>
+            <span class="title">🛡 AITEACHER Admin Panel</span>
+            <span class="user" id="topUser"></span>
+            <button id="logoutBtn">Выйти</button>
+        </div>
+        <div class="layout">
+            <div class="sidebar-overlay hidden" id="sidebarOverlay"></div>
+            <div class="sidebar" id="sidebar">
+                <div class="section-title">Панель</div>
+                <div class="item active" id="statsNav"><span>📊</span> <span class="name">Дашборд</span></div>
+                <div class="section-title">Пользователи</div>
+                <div id="userList"></div>
+            </div>
+            <div class="main" id="mainArea">
+                <div id="statsView">
+                    <div class="stats-summary" id="statsSummary">
+                        <div class="stat-card"><div class="num" id="statUsers">0</div><div class="label">Пользователей</div></div>
+                        <div class="stat-card"><div class="num" id="statMessages">0</div><div class="label">Сообщений</div></div>
+                        <div class="stat-card"><div class="num" id="statActive">0</div><div class="label">Активных сегодня</div></div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>👥 Активность пользователей</h3>
+                        <div class="scroll-wrap">
+                            <table>
+                                <thead><tr><th>Пользователь</th><th>Время</th><th>Запросы</th><th>Статус</th></tr></thead>
+                                <tbody id="tblUsers"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>📅 Активность по дням</h3>
+                        <div class="scroll-wrap">
+                            <table>
+                                <thead><tr><th>Дата</th><th>Сообщения</th></tr></thead>
+                                <tbody id="tblDays"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="userDetailView" style="display:none"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_KEY = 'aiteacher_admin';
+        let adminUser = localStorage.getItem(ADMIN_KEY) || '';
+
+        const loginScreen = document.getElementById('loginScreen');
+        const loginInput = document.getElementById('loginInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const app = document.getElementById('app');
+        const topUser = document.getElementById('topUser');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const sidebar = document.getElementById('sidebar');
+        const userList = document.getElementById('userList');
+        const statsNav = document.getElementById('statsNav');
+        const mainArea = document.getElementById('mainArea');
+        const statsView = document.getElementById('statsView');
+        const userDetailView = document.getElementById('userDetailView');
+        const statUsers = document.getElementById('statUsers');
+        const statMessages = document.getElementById('statMessages');
+        const statActive = document.getElementById('statActive');
+        const tblUsers = document.getElementById('tblUsers');
+        const tblDays = document.getElementById('tblDays');
+
+        let pollInterval = null;
+
+        // Hamburger / Mobile Sidebar
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        function toggleSidebar() { sidebar.classList.toggle('open'); sidebarOverlay.classList.toggle('hidden'); }
+        hamburgerBtn.onclick = toggleSidebar;
+        sidebarOverlay.onclick = toggleSidebar;
+        document.addEventListener('click', function(e) {
+            const item = e.target.closest('.sidebar .item');
+            if (item && window.innerWidth <= 768) toggleSidebar();
+        });
+
+        // Login
+        function showLogin() { loginScreen.classList.remove('hidden'); app.classList.remove('active'); }
+        function showApp() { loginScreen.classList.add('hidden'); app.classList.add('active'); }
+
+        async function doLogin() {
+            const u = loginInput.value.trim();
+            const p = passwordInput.value;
+            if (!u || !p) { loginError.textContent = 'Введите логин и пароль'; loginError.style.display = 'block'; return; }
+            loginBtn.disabled = true; loginBtn.textContent = 'Вход...'; loginError.style.display = 'none';
+            try {
+                const r = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({username: u, password: p})
+                });
+                if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Ошибка'); }
+                const data = await r.json();
+                adminUser = data.username;
+                localStorage.setItem(ADMIN_KEY, adminUser);
+                initApp();
+            } catch(e) {
+                loginError.textContent = 'Неверные данные администратора';
+                loginError.style.display = 'block';
+            }
+            loginBtn.disabled = false; loginBtn.textContent = 'Войти';
+        }
+        loginBtn.onclick = doLogin;
+        passwordInput.addEventListener('keydown', e => e.key === 'Enter' && doLogin());
+
+        // Init
+        function initApp() {
+            showApp();
+            topUser.textContent = adminUser;
+            showDashboard();
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(loadSidebar, 15000);
+        }
+
+        // Navigation
+        statsNav.onclick = function() {
+            document.querySelectorAll('.sidebar .item').forEach(el => el.classList.remove('active'));
+            statsNav.classList.add('active');
+            showDashboard();
+        };
+
+        function showDashboard() {
+            statsView.style.display = 'block';
+            userDetailView.style.display = 'none';
+            loadStats();
+            loadTblUsers();
+            loadTblDays();
+        }
+
+        function showUserView() {
+            statsView.style.display = 'none';
+            userDetailView.style.display = 'block';
+        }
+
+        // Sidebar user list
+        async function loadSidebar() {
+            try {
+                const r = await fetch(`/api/admin/users?un=${adminUser}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                userList.innerHTML = '';
+                data.forEach((u, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'item';
+                    div.style.paddingLeft = `${1 + Math.min(i * 0.25, 2)}rem`;
+                    let badges = '';
+                    if (u.blocked) badges += '<span class="badge blocked">блок</span>';
+                    else if (u.suspended) badges += '<span class="badge suspended">пауза</span>';
+                    const dotClass = u.blocked ? 'off' : (u.suspended ? 'suspended' : (u.online ? 'on' : 'off'));
+                    div.innerHTML = `<span class="dot ${dotClass}"></span><span class="name">${u.username}</span>${badges}<span class="count">${u.total_messages}</span>`;
+                    div.onclick = () => loadUserDetail(u.username);
+                    userList.appendChild(div);
+                });
+            } catch {}
+        }
+
+        // Dashboard tables
+        async function loadTblUsers() {
+            try {
+                const r = await fetch(`/api/admin/users/table?un=${adminUser}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                tblUsers.innerHTML = data.map(u => {
+                    const sc = u.blocked ? 'blocked' : (u.suspended ? 'suspended' : (u.online ? 'online' : 'offline'));
+                    const sl = u.blocked ? 'Заблокирован' : (u.suspended ? 'Приостановлен' : (u.online ? 'Онлайн' : 'Офлайн'));
+                    return `<tr style="cursor:pointer" onclick="loadUserDetail('${u.username}')">
+                        <td><strong>${u.username}</strong></td>
+                        <td>${u.time_spent_minutes} мин</td>
+                        <td>${u.requests}</td>
+                        <td><span class="status-badge ${sc}">${sl}</span></td>
+                    </tr>`;
+                }).join('');
+            } catch {}
+        }
+
+        async function loadTblDays() {
+            try {
+                const r = await fetch(`/api/admin/stats/table/per_day?un=${adminUser}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                tblDays.innerHTML = data.map(d => `<tr><td>${d.date}</td><td><strong>${d.messages}</strong></td></tr>`).join('');
+            } catch {}
+        }
+
+        async function loadStats() {
+            try {
+                const r = await fetch(`/api/admin/stats?un=${adminUser}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                statUsers.textContent = data.total_users;
+                statMessages.textContent = data.total_messages;
+                statActive.textContent = data.active_today;
+            } catch {}
+        }
+
+        // User detail
+        async function loadUserDetail(username) {
+            document.querySelectorAll('.sidebar .item').forEach(el => el.classList.remove('active'));
+            showUserView();
+            userDetailView.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)">Загрузка...</div>';
+            try {
+                const r = await fetch(`/api/admin/user/${username}?un=${adminUser}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                renderUserDetail(data);
+                const items = userList.querySelectorAll('.item');
+                items.forEach(el => { if (el.querySelector('.name').textContent === username) el.classList.add('active'); });
+            } catch {
+                userDetailView.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--red)">Ошибка загрузки</div>';
+            }
+        }
+
+        function renderUserDetail(data) {
+            const blocked = data.blocked, suspended = data.suspended;
+            const history = data.history || [];
+            const avatarHtml = data.avatar ? `<img src="${data.avatar}" alt="avatar">` : data.username.charAt(0).toUpperCase();
+            const blockCls = blocked ? 'block active' : 'block';
+            const blockTxt = blocked ? '✅ Разблокировать' : '🚫 Заблокировать';
+            const suspCls = suspended ? 'suspend active' : 'suspend';
+            const suspTxt = suspended ? '▶️ Возобновить' : '⏸️ Приостановить';
+
+            let historyHtml = history.length === 0
+                ? '<div class="empty">Нет сообщений</div>'
+                : history.map(m => `<div class="msg-row"><div class="meta"><span class="subj">${m.icon} ${m.label}</span>&nbsp;<span class="role ${m.role === 'user' ? 'u' : 'a'}">${m.role === 'user' ? '👤' : '🤖'} ${m.role === 'user' ? 'Пользователь' : 'AI'}</span></div><div class="content" onclick="this.classList.toggle('expanded')">${escHtml(m.content)}</div></div>`).join('');
+
+            userDetailView.innerHTML = `
+                <div class="user-detail">
+                    <div class="info">
+                        <div class="ava">${avatarHtml}</div>
+                        <div class="fields">
+                            <div class="name">${data.username}</div>
+                            <div>Создан: ${data.created_at ? data.created_at.slice(0, 16) : '-'}</div>
+                            <div>Активен: ${data.last_active ? data.last_active.slice(0, 16) : '-'}</div>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="${blockCls}" id="blockBtn">${blockTxt}</button>
+                        <button class="${suspCls}" id="suspendBtn">${suspTxt}</button>
+                        <button class="delete" id="delBtn">🗑️ Удалить</button>
+                    </div>
+                    <div class="dash-section">
+                        <h3>⏱ Время на сервисе</h3>
+                        <div class="scroll-wrap">
+                            <table><thead><tr><th>Дата</th><th>Время (мин)</th></tr></thead><tbody id="tblTimeSpent"></tbody></table>
+                        </div>
+                    </div>
+                    <div class="history">
+                        <h3 style="font-size:1rem;margin-bottom:0.8rem">История запросов (${history.length})</h3>
+                        ${historyHtml}
+                    </div>
+                </div>`;
+
+            document.getElementById('blockBtn').onclick = () => toggleBlock(data.username, blocked);
+            document.getElementById('suspendBtn').onclick = () => toggleSuspend(data.username, suspended);
+            document.getElementById('delBtn').onclick = () => deleteUser(data.username);
+            loadTimeSpent(data.username);
+        }
+
+        async function loadTimeSpent(username) {
+            const tbody = document.getElementById('tblTimeSpent');
+            if (!tbody) return;
+            try {
+                const r = await fetch(`/api/admin/stats/table/time_spent/${username}?un=${adminUser}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                tbody.innerHTML = data.length
+                    ? data.map(d => `<tr><td>${d.date}</td><td>${d.time_spent_minutes}</td></tr>`).join('')
+                    : '<tr><td colspan="2" style="text-align:center;color:var(--text2)">Нет данных</td></tr>';
+            } catch { tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--red)">Ошибка</td></tr>'; }
+        }
+
+        function escHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        async function toggleBlock(username, cur) {
+            try {
+                const r = await fetch(`/api/admin/user/${username}/block?un=${adminUser}`, { method: 'POST' });
+                if (!r.ok) return;
+                const data = await r.json();
+                const btn = document.getElementById('blockBtn');
+                if (data.blocked) { btn.textContent = '✅ Разблокировать'; btn.className = 'block active'; }
+                else { btn.textContent = '🚫 Заблокировать'; btn.className = 'block'; }
+                loadSidebar(); loadTblUsers();
+            } catch {}
+        }
+
+        async function toggleSuspend(username, cur) {
+            try {
+                const r = await fetch(`/api/admin/user/${username}/suspend?un=${adminUser}`, { method: 'POST' });
+                if (!r.ok) return;
+                const data = await r.json();
+                const btn = document.getElementById('suspendBtn');
+                if (data.suspended) { btn.textContent = '▶️ Возобновить'; btn.className = 'suspend active'; }
+                else { btn.textContent = '⏸️ Приостановить'; btn.className = 'suspend'; }
+                loadSidebar(); loadTblUsers();
+            } catch {}
+        }
+
+        async function deleteUser(username) {
+            if (!confirm(`Удалить ${username}?`)) return;
+            if (!confirm('Вы уверены?')) return;
+            try {
+                const r = await fetch(`/api/admin/user/${username}?un=${adminUser}`, { method: 'DELETE' });
+                if (r.ok) { loadSidebar(); loadTblUsers(); showDashboard(); }
+            } catch {}
+        }
+
+        // Logout
+        logoutBtn.onclick = function() {
+            localStorage.removeItem(ADMIN_KEY);
+            adminUser = '';
+            if (pollInterval) clearInterval(pollInterval);
+            showLogin();
+            loginInput.value = ''; passwordInput.value = '';
+        };
+
+        // Boot
+        if (adminUser) initApp(); else showLogin();
+    </script>
+</body>
+</html>

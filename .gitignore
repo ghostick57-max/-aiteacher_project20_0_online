@@ -1,0 +1,27 @@
+venv/
+__pycache__/
+*.pyc
+.env
+
+# JSON data files (user data, sessions, stats)
+users.json
+sessions.json
+daily_stats.json
+config/admin.json
+config/email_config.json
+
+# FAISS RAG index (auto-rebuilt)
+faiss_index/
+
+# Uploaded files
+uploads/
+!uploads/.gitkeep
+
+# OS
+Thumbs.db
+.DS_Store
+*.lnk
+
+# IDE
+.vscode/
+.idea/

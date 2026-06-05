@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>AITEACHER</title>
+    <style>
+        :root {
+            --bg: #f1f5f9; --sidebar: #1e293b; --sidebar-text: #e2e8f0;
+            --sidebar-hover: #334155; --sidebar-active: #2563eb;
+            --chat: #ffffff; --primary: #2563eb; --primary-hover: #1d4ed8;
+            --user: #dbeafe; --ai: #f8fafc; --text: #1e293b; --text-muted: #64748b;
+            --border: #e2e8f0; --input-bg: #ffffff; --header-bg: #2563eb;
+            --header-text: #fff; --status-text: #64748b;
+            --overlay: rgba(0,0,0,0.4);
+            --sidebar-width: 240px;
+        }
+        [data-theme="dark"] {
+            --bg: #0f172a; --sidebar: #0f172a; --sidebar-text: #cbd5e1;
+            --sidebar-hover: #1e293b; --sidebar-active: #3b82f6;
+            --chat: #1e293b; --primary: #3b82f6; --primary-hover: #2563eb;
+            --user: #1e3a5f; --ai: #2d3748; --text: #e2e8f0; --text-muted: #94a3b8;
+            --border: #334155; --input-bg: #1e293b; --header-bg: #1e293b;
+            --header-text: #e2e8f0; --status-text: #94a3b8;
+            --overlay: rgba(0,0,0,0.6);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100dvh; height: 100vh; overflow: hidden; display: flex; justify-content: center; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* ─── Login Screen ─── */
+        #loginScreen {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100dvh; height: 100vh; background: var(--bg); padding: 1rem;
+        }
+        #loginScreen.hidden { display: none; }
+        .login-card {
+            background: var(--chat); padding: clamp(1.2rem, 5vw, 2.5rem); border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1); width: 100%; max-width: 380px;
+            text-align: center;
+        }
+        .login-card h1 { font-size: clamp(1.3rem, 4vw, 1.6rem); margin-bottom: 0.5rem; }
+        .login-card p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: clamp(0.85rem, 2.5vw, 0.95rem); }
+        .login-card input {
+            width: 100%; padding: 0.9rem; border: 1px solid var(--border);
+            border-radius: 10px; font-size: 1rem; outline: none;
+            background: var(--input-bg); color: var(--text); margin-bottom: 1rem;
+        }
+        .login-card input:focus { border-color: var(--primary); }
+        .login-card input:last-of-type { margin-bottom: 1rem; }
+        .login-card button {
+            width: 100%; padding: 0.9rem; background: var(--primary); color: #fff;
+            border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
+            cursor: pointer;
+        }
+        .login-card button:hover { background: var(--primary-hover); }
+        .login-card button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .login-error { color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+        .login-tabs { display: flex; margin-bottom: 1.2rem; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+        .login-tabs div { flex: 1; padding: 0.6rem; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: var(--input-bg); color: var(--text-muted); transition: all 0.15s; }
+        .login-tabs div.active { background: var(--primary); color: #fff; }
+
+        /* ─── App Layout ─── */
+        #app { display: none; width: 100%; max-width: 1400px; height: 100dvh; height: 100vh; background: var(--chat); }
+        #app.active { display: flex; }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: var(--sidebar-width); min-width: var(--sidebar-width);
+            background: var(--sidebar); color: var(--sidebar-text);
+            display: flex; flex-direction: column; overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-user {
+            padding: 1.2rem; border-bottom: 1px solid var(--sidebar-hover);
+            display: flex; align-items: center; gap: 0.7rem; cursor: pointer;
+        }
+        .sidebar-user .avatar {
+            width: 36px; height: 36px; border-radius: 50%; background: var(--sidebar-active);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; color: #fff; font-weight: 600; overflow: hidden;
+            flex-shrink: 0;
+        }
+        .sidebar-user .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .sidebar-user .uname { font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-subjects { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
+        .subject-item {
+            display: flex; align-items: center; gap: 0.7rem;
+            padding: 0.7rem 1.2rem; cursor: pointer; font-size: 0.9rem;
+            border-left: 3px solid transparent; transition: all 0.15s;
+        }
+        .subject-item:hover { background: var(--sidebar-hover); }
+        .subject-item.active {
+            background: var(--sidebar-hover); border-left-color: var(--sidebar-active); color: #fff;
+        }
+        .subject-item .icon { font-size: 1.1rem; width: 24px; text-align: center; }
+        .sidebar-footer { padding: 0.5rem 0; border-top: 1px solid var(--sidebar-hover); }
+        .sidebar-footer .item {
+            display: flex; align-items: center; gap: 0.7rem;
+            padding: 0.7rem 1.2rem; cursor: pointer; font-size: 0.9rem;
+            transition: background 0.15s;
+        }
+        .sidebar-footer .item:hover { background: var(--sidebar-hover); }
+
+        /* ─── Main Content ─── */
+        .main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+        .header {
+            padding: 0.9rem 1.2rem; background: var(--header-bg); color: var(--header-text);
+            display: flex; align-items: center; gap: 0.8rem; font-size: 1.05rem; font-weight: 600;
+        }
+        .header .hamburger {
+            display: none; background: none; border: none; color: var(--header-text);
+            font-size: 1.4rem; cursor: pointer; padding: 0.2rem;
+        }
+        .header .subj-label { flex: 1; }
+        .header .new-chat-btn {
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+            color: inherit; padding: 0.35rem 0.75rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; white-space: nowrap;
+        }
+        .header .new-chat-btn:hover { background: rgba(255,255,255,0.25); }
+        .chat {
+            flex: 1; overflow-y: auto; padding: clamp(0.75rem, 3vw, 1.5rem); display: flex;
+            flex-direction: column; gap: clamp(0.75rem, 2vw, 1rem);
+        }
+        .chat .empty-state {
+            margin: auto; text-align: center; color: var(--text-muted);
+            padding: 2rem; max-width: 360px;
+        }
+        .chat .empty-state .big-icon { font-size: 3rem; margin-bottom: 0.8rem; }
+        .chat .empty-state h3 { font-size: 1.1rem; margin-bottom: 0.4rem; color: var(--text); }
+        .chat .empty-state p { font-size: 0.9rem; line-height: 1.5; }
+        .msg {
+            padding: clamp(0.65rem, 2vw, 0.9rem) clamp(0.9rem, 2.5vw, 1.2rem);
+            border-radius: 12px; max-width: min(85%, 700px);
+            line-height: 1.6; word-break: break-word; color: var(--text);
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .msg.u { background: var(--user); align-self: flex-end; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .msg.a { background: var(--ai); align-self: flex-start; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .msg img.attached { max-width: 100%; border-radius: 8px; margin-top: 0.4rem; display: block; }
+        .msg .file-link { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; padding: 0.4rem 0.8rem; background: var(--input-bg); border-radius: 8px; text-decoration: none; color: var(--primary); font-size: 0.85rem; border: 1px solid var(--border); }
+        .input-wrapper {
+            border-top: 1px solid var(--border); background: var(--chat);
+        }
+        .attach-preview {
+            display: flex; gap: 0.5rem; padding: 0.5rem 1rem 0 1rem;
+            flex-wrap: wrap;
+        }
+        .attach-preview .chip {
+            display: flex; align-items: center; gap: 0.4rem;
+            background: var(--input-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.3rem 0.6rem; font-size: 0.8rem; max-width: 200px;
+        }
+        .attach-preview .chip img.preview-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+        .attach-preview .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .attach-preview .chip .remove { cursor: pointer; color: var(--text-muted); font-size: 1rem; line-height: 1; }
+        .attach-preview .chip .remove:hover { color: #ef4444; }
+        .input-bar {
+            padding: 1rem; display: flex; gap: 0.6rem; background: var(--chat);
+        }
+        .input-bar .attach-btn {
+            background: none; border: 1px solid var(--border); border-radius: 10px;
+            cursor: pointer; font-size: 1.2rem; padding: 0.7rem 0.8rem;
+            color: var(--text-muted); display: flex; align-items: center;
+        }
+        .input-bar .attach-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .input-bar input {
+            flex: 1; padding: 0.9rem; border: 1px solid var(--border);
+            border-radius: 10px; outline: none; font-size: 1rem;
+            background: var(--input-bg); color: var(--text);
+        }
+        .input-bar input:focus { border-color: var(--primary); }
+        .input-bar input::placeholder { color: var(--text-muted); }
+        .input-bar .send-btn {
+            padding: 0.9rem 1.4rem; background: var(--primary); color: #fff;
+            border: none; border-radius: 10px; cursor: pointer; font-weight: 500;
+        }
+        .input-bar .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status { font-size: 0.85rem; color: var(--status-text); padding: 0 1rem 0.5rem 1rem; background: var(--chat); height: 1.4rem; }
+
+        /* ─── Modal ─── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: var(--overlay);
+            z-index: 100; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: var(--chat); border-radius: 16px; padding: 2rem;
+            width: 100%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal h2 { font-size: 1.2rem; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
+        .modal input, .modal textarea, .modal select {
+            width: 100%; padding: 0.8rem; border: 1px solid var(--border);
+            border-radius: 10px; font-size: 0.95rem; outline: none;
+            background: var(--input-bg); color: var(--text); margin-bottom: 0.8rem;
+        }
+        .modal input:focus, .modal textarea:focus { border-color: var(--primary); }
+        .modal textarea { resize: vertical; min-height: 100px; font-family: inherit; }
+        .modal .btn-row { display: flex; gap: 0.6rem; margin-top: 0.5rem; }
+        .modal .btn-row button { flex: 1; padding: 0.7rem; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; }
+        .modal .btn-row .primary { background: var(--primary); color: #fff; }
+        .modal .btn-row .primary:hover { background: var(--primary-hover); }
+        .modal .btn-row .secondary { background: var(--input-bg); color: var(--text); border: 1px solid var(--border); }
+        .modal .color-picker-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.8rem; }
+        .modal .color-picker-row input[type="color"] { width: 48px; height: 48px; padding: 2px; cursor: pointer; margin-bottom: 0; }
+        .modal .color-picker-row span { font-size: 0.9rem; color: var(--text-muted); font-family: monospace; }
+        .modal .avatar-section { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .modal .avatar-section .preview { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+        .modal .avatar-section .preview img { width: 100%; height: 100%; object-fit: cover; }
+        .modal .support-ok { color: #22c55e; font-size: 0.9rem; display: none; margin-top: 0.5rem; }
+
+        /* ─── Mobile overlay ─── */
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0; background: var(--overlay);
+            z-index: 9;
+        }
+        .sidebar-overlay.show { display: block; }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 1024px) {
+            .sidebar { width: 200px; min-width: 200px; }
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: var(--sidebar-width); min-width: var(--sidebar-width);
+                position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .header .hamburger { display: block; }
+            .msg { max-width: min(92%, 600px); }
+        }
+        @media (max-width: 600px) {
+            .chat { padding: 0.75rem; gap: 0.75rem; }
+            .header { padding: 0.75rem 0.9rem; font-size: 1rem; }
+            .header .new-chat-btn { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+            .input-bar { padding: 0.6rem 0.75rem; padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px)); gap: 0.4rem; }
+            .input-bar input { padding: 0.75rem; font-size: 16px; }
+            .input-bar .send-btn { padding: 0.75rem 1rem; font-size: 0.9rem; }
+            .input-bar .attach-btn { padding: 0.5rem 0.6rem; font-size: 1.1rem; }
+            .msg { font-size: 0.95rem; padding: 0.75rem 1rem; }
+            .login-card { padding: 1.2rem; }
+            .login-card h1 { font-size: 1.3rem; }
+            .modal { padding: 1.2rem; max-height: 85dvh; }
+            .attach-preview .chip { max-width: 140px; }
+        }
+        @media (max-width: 480px) {
+            .input-bar .send-btn { padding: 0.7rem 0.8rem; font-size: 0; line-height: 1; }
+            .input-bar .send-btn::after { content: "➤"; font-size: 1.2rem; }
+            .header .new-chat-btn { font-size: 0.65rem; padding: 0.15rem 0.4rem; }
+            .header { padding: 0.6rem 0.7rem; font-size: 0.95rem; gap: 0.5rem; }
+            .header .hamburger { font-size: 1.2rem; }
+            .login-tabs div { font-size: 0.82rem; padding: 0.5rem; }
+            .sidebar-footer .item { padding: 0.5rem 0.8rem; font-size: 0.82rem; }
+        }
+        @media (max-width: 400px) {
+            .msg { max-width: 97%; font-size: 0.9rem; }
+            .input-bar .send-btn { padding: 0.6rem 0.7rem; }
+            .input-bar .attach-btn { padding: 0.4rem 0.5rem; font-size: 1rem; }
+            .header { padding: 0.5rem 0.6rem; font-size: 0.9rem; }
+            .header .new-chat-btn { font-size: 0.7rem; padding: 0.2rem 0.35rem; }
+        }
+        @media (max-width: 360px) {
+            .login-card { padding: 0.8rem; }
+            .login-card input { padding: 0.65rem; font-size: 0.9rem; }
+            .login-card h1 { font-size: 1.1rem; }
+            .msg { max-width: 98%; font-size: 0.85rem; padding: 0.6rem 0.8rem; }
+            .modal { padding: 0.8rem; }
+            .modal h2 { font-size: 1rem; }
+            .input-bar { padding: 0.4rem 0.5rem; gap: 0.3rem; }
+            .input-bar input { padding: 0.6rem; font-size: 14px; }
+        }
+
+        /* ─── Markdown / Code / Formulas ─── */
+        .msg.a { line-height: 1.7; }
+        .msg.a p { margin-bottom: 0.6em; }
+        .msg.a p:last-child { margin-bottom: 0; }
+        .msg.a ul, .msg.a ol { margin: 0.4em 0; padding-left: 1.5em; }
+        .msg.a li { margin-bottom: 0.2em; }
+        .msg.a blockquote {
+            margin: 0.5em 0; padding: 0.4em 1em;
+            border-left: 3px solid var(--primary);
+            color: var(--text-muted);
+            background: var(--bg);
+            border-radius: 0 8px 8px 0;
+        }
+        .msg.a h1, .msg.a h2, .msg.a h3, .msg.a h4 { margin: 0.6em 0 0.3em; color: var(--text); }
+        .msg.a h1 { font-size: 1.3rem; }
+        .msg.a h2 { font-size: 1.15rem; }
+        .msg.a h3 { font-size: 1.05rem; }
+        .msg.a table {
+            border-collapse: collapse; margin: 0.5em 0;
+            font-size: 0.9rem; width: 100%;
+        }
+        .msg.a th, .msg.a td {
+            border: 1px solid var(--border); padding: 0.4em 0.6em;
+            text-align: left;
+        }
+        .msg.a th { background: var(--bg); font-weight: 600; }
+        .msg.a hr { border: none; border-top: 1px solid var(--border); margin: 0.8em 0; }
+        .msg.a code:not([class]) {
+            background: var(--bg); padding: 0.15em 0.4em;
+            border-radius: 4px; font-size: 0.88em;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        }
+        .msg.a pre {
+            margin: 0.6em 0; border-radius: 8px; overflow-x: auto;
+            background: #1e293b; position: relative;
+        }
+        .msg.a pre code {
+            display: block; padding: 0.9em 1em;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem; line-height: 1.5;
+            background: transparent; color: #e2e8f0;
+        }
+        .msg.a pre code.language-math {
+            background: transparent; color: var(--text);
+            font-size: 1.05rem; padding: 0.8em 1em;
+        }
+        .msg.a .katex-display { margin: 0.6em 0; overflow-x: auto; overflow-y: hidden; }
+        .msg.a img.attached {
+            max-width: 100%; border-radius: 8px; margin-top: 0.4rem; display: block;
+        }
+        .msg.a .file-link {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            margin-top: 0.4rem; padding: 0.4rem 0.8rem;
+            background: var(--input-bg); border-radius: 8px;
+            text-decoration: none; color: var(--primary);
+            font-size: 0.85rem; border: 1px solid var(--border);
+        }
+        .latex-fallback {
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            background: var(--bg); padding: 0.5em 0.8em;
+            border-radius: 8px; display: inline-block;
+            font-size: 0.95rem; white-space: pre-wrap; word-break: break-word;
+            border: 1px solid var(--border); margin: 0.3em 0;
+        }
+        .render-error {
+            display: inline-block; padding: 0.2em 0.6em;
+            background: #fef2f2; color: #dc2626;
+            border-radius: 6px; font-size: 0.85rem;
+            border: 1px solid #fca5a5; margin-bottom: 0.3em;
+        }
+        [data-theme="dark"] .render-error {
+            background: #451a1a; color: #fca5a5; border-color: #991b1b;
+        }
+    </style>
+
+    <!-- KaTeX (формулы) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <!-- highlight.js (подсветка кода) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <h1>AITEACHER</h1>
+            <p>AI-помощник по школьным предметам</p>
+            <div class="login-tabs">
+                <div id="loginTab" class="active">Вход</div>
+                <div id="registerTab">Регистрация</div>
+            </div>
+            <input type="text" id="loginInput" placeholder="Имя пользователя" autocomplete="off" maxlength="30">
+            <input type="password" id="passwordInput" placeholder="Пароль" maxlength="64">
+            <button id="loginBtn">Войти</button>
+            <div class="login-error" id="loginError"></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-user" id="avatarBtn">
+                <div class="avatar" id="userAvatar">?</div>
+                <div class="uname" id="userName">Пользователь</div>
+            </div>
+            <div class="sidebar-subjects" id="subjectList"></div>
+            <div class="sidebar-footer">
+                <div class="item" id="supportBtn">
+                    <span>🛟</span> <span>Техподдержка</span>
+                </div>
+                <div class="item" id="settingsBtn">
+                    <span>⚙️</span> <span>Настройки</span>
+                </div>
+                <div class="item" id="themeToggle">
+                    <span>🌙</span> <span>Тёмная тема</span>
+                </div>
+                <div class="item" id="logoutBtn">
+                    <span>🚪</span> <span>Выйти</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <div class="header">
+                <button class="hamburger" id="hamburgerBtn">☰</button>
+                <span class="subj-label" id="subjLabel">Выберите предмет</span>
+                <button class="new-chat-btn" id="newChatBtn">+ Новый чат</button>
+            </div>
+            <div class="chat" id="chat"></div>
+            <div class="status" id="status"></div>
+            <div class="input-wrapper">
+                <div class="attach-preview" id="attachPreview"></div>
+                <div class="input-bar">
+                    <button class="attach-btn" id="attachBtn" title="Прикрепить файл">📎</button>
+                    <input type="text" id="inp" placeholder="Введите ваш вопрос..." autocomplete="off">
+                    <button class="send-btn" id="btn">Отправить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <h2>⚙️ Настройки</h2>
+            <div class="avatar-section">
+                <div class="preview" id="settingsAvatarPreview">?</div>
+                <div>
+                    <button class="primary" style="padding:0.5rem 1rem;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:0.85rem;" id="settingsAvatarBtn">Выбрать аватар</button>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;">JPG, PNG, GIF, WebP до 2MB</p>
+                </div>
+            </div>
+            <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:0.3rem;">Акцентный цвет</label>
+            <div class="color-picker-row">
+                <input type="color" id="accentColorPicker" value="#2563eb">
+                <span id="accentColorLabel">#2563eb</span>
+            </div>
+            <div class="btn-row">
+                <button class="secondary" id="settingsCloseBtn">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Modal -->
+    <div class="modal-overlay" id="supportModal">
+        <div class="modal">
+            <h2>🛟 Техподдержка</h2>
+            <input type="text" id="supportSubject" placeholder="Тема обращения" maxlength="100">
+            <textarea id="supportMessage" placeholder="Опишите вашу проблему..."></textarea>
+            <div class="support-ok" id="supportOk">Спасибо! Обращение отправлено.</div>
+            <div class="btn-row">
+                <button class="secondary" id="supportCancelBtn">Отмена</button>
+                <button class="primary" id="supportSendBtn">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="fileInput" multiple style="display:none">
+    <input type="file" id="avatarInput" accept="image/*" style="display:none">
+
+    <!-- KaTeX -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <!-- highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- marked (markdown) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.0/purify.min.js"></script>
+
+    <script>
+        // ─── Config ───
+        const SUBJECTS = [
+            {id:"russian",label:"Русский язык",icon:"📝"},
+            {id:"algebra",label:"Алгебра",icon:"➗"},
+            {id:"geometry",label:"Геометрия",icon:"📐"},
+            {id:"physics",label:"Физика",icon:"⚡"},
+            {id:"chemistry",label:"Химия",icon:"🧪"},
+            {id:"english",label:"Английский язык",icon:"🔤"},
+            {id:"history",label:"История",icon:"📜"},
+            {id:"social",label:"Обществознание",icon:"🏛️"},
+            {id:"informatics",label:"Информатика",icon:"💻"}
+        ];
+
+        // ─── DOM refs ───
+        const loginScreen = document.getElementById('loginScreen');
+        const loginInput = document.getElementById('loginInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const loginTab = document.getElementById('loginTab');
+        const registerTab = document.getElementById('registerTab');
+        const app = document.getElementById('app');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const subjectList = document.getElementById('subjectList');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+        const avatarBtn = document.getElementById('avatarBtn');
+        const subjLabel = document.getElementById('subjLabel');
+        const themeToggle = document.getElementById('themeToggle');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const supportBtn = document.getElementById('supportBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const chat = document.getElementById('chat');
+        const inp = document.getElementById('inp');
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const fileInput = document.getElementById('fileInput');
+        const avatarInput = document.getElementById('avatarInput');
+        const attachBtn = document.getElementById('attachBtn');
+        const attachPreview = document.getElementById('attachPreview');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+        const settingsAvatarBtn = document.getElementById('settingsAvatarBtn');
+        const settingsAvatarPreview = document.getElementById('settingsAvatarPreview');
+        const accentColorPicker = document.getElementById('accentColorPicker');
+        const accentColorLabel = document.getElementById('accentColorLabel');
+        const supportModal = document.getElementById('supportModal');
+        const supportSubject = document.getElementById('supportSubject');
+        const supportMessage = document.getElementById('supportMessage');
+        const supportOk = document.getElementById('supportOk');
+        const supportCancelBtn = document.getElementById('supportCancelBtn');
+        const supportSendBtn = document.getElementById('supportSendBtn');
+
+        // ─── State ───
+        let currentUser = localStorage.getItem('aiteacher_user') || '';
+        let currentSubject = localStorage.getItem('aiteacher_subject') || '';
+        let sending = false;
+        let isLoginMode = true;
+        let attachments = [];
+
+        // ─── Theme ───
+        function loadTheme() {
+            const t = localStorage.getItem('aiteacher_theme');
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeToggle.querySelector('span:first-child').textContent = '☀️';
+                themeToggle.querySelector('span:last-child').textContent = 'Светлая тема';
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                themeToggle.querySelector('span:first-child').textContent = '🌙';
+                themeToggle.querySelector('span:last-child').textContent = 'Тёмная тема';
+            }
+        }
+        function toggleTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            localStorage.setItem('aiteacher_theme', isDark ? 'light' : 'dark');
+            loadTheme();
+        }
+        themeToggle.onclick = toggleTheme;
+        loadTheme();
+
+        // ─── Login Tabs ───
+        loginTab.onclick = function() {
+            isLoginMode = true;
+            loginTab.classList.add('active');
+            registerTab.classList.remove('active');
+            loginBtn.textContent = 'Войти';
+            loginError.style.display = 'none';
+        };
+        registerTab.onclick = function() {
+            isLoginMode = false;
+            registerTab.classList.add('active');
+            loginTab.classList.remove('active');
+            loginBtn.textContent = 'Зарегистрироваться';
+            loginError.style.display = 'none';
+        };
+
+        // ─── Login ───
+        function showLogin() { loginScreen.classList.remove('hidden'); app.classList.remove('active'); }
+        function showApp() { loginScreen.classList.add('hidden'); app.classList.add('active'); }
+
+        async function doLogin() {
+            const name = loginInput.value.trim();
+            const pwd = passwordInput.value;
+            if (!name) { loginError.textContent = 'Введите имя пользователя'; loginError.style.display = 'block'; return; }
+            if (!pwd) { loginError.textContent = 'Введите пароль'; loginError.style.display = 'block'; return; }
+            loginBtn.disabled = true; loginBtn.textContent = 'Подождите...'; loginError.style.display = 'none';
+            try {
+                let endpoint, body;
+                if (isLoginMode) {
+                    endpoint = '/api/login';
+                    body = JSON.stringify({username: name, password: pwd});
+                } else {
+                    endpoint = '/api/register';
+                    body = JSON.stringify({username: name, password: pwd});
+                }
+                const r = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: body
+                });
+                if (!r.ok) {
+                    const e = await r.json();
+                    throw new Error(e.detail || 'Ошибка');
+                }
+                const data = await r.json();
+                currentUser = data.username;
+                localStorage.setItem('aiteacher_user', currentUser);
+                currentSubject = localStorage.getItem('aiteacher_subject') || 'algebra';
+                initApp();
+            } catch(e) {
+                loginError.textContent = e.message === 'Неверный пароль' ? 'Неверный пароль' : 'Ошибка подключения к серверу';
+                loginError.style.display = 'block';
+            }
+            loginBtn.disabled = false; loginBtn.textContent = isLoginMode ? 'Войти' : 'Зарегистрироваться';
+        }
+        loginBtn.onclick = doLogin;
+        passwordInput.addEventListener('keydown', e => e.key === 'Enter' && doLogin());
+        loginInput.addEventListener('keydown', e => e.key === 'Enter' && passwordInput.focus());
+
+        // ─── Init App ───
+        async function initApp() {
+            showApp();
+            userName.textContent = currentUser;
+            renderSubjects();
+            loadTheme();
+            loadUserProfile();
+            closeSidebar();
+            if (currentSubject) {
+                selectSubject(currentSubject);
+            } else {
+                selectSubject('algebra');
+            }
+        }
+
+        async function loadUserProfile() {
+            try {
+                const r = await fetch(`/api/user/${currentUser}`);
+                if (r.ok) {
+                    const data = await r.json();
+                    applyAccentColor(data.accent_color);
+                    updateAvatar(data.avatar);
+                }
+            } catch {}
+        }
+
+        function applyAccentColor(color) {
+            if (color) {
+                document.documentElement.style.setProperty('--primary', color);
+                document.documentElement.style.setProperty('--primary-hover', color);
+                document.documentElement.style.setProperty('--header-bg', color);
+                document.documentElement.style.setProperty('--sidebar-active', color);
+            }
+        }
+
+        function updateAvatar(url) {
+            if (url) {
+                userAvatar.innerHTML = `<img src="${url}?t=${Date.now()}" alt="avatar">`;
+            } else {
+                userAvatar.textContent = currentUser.charAt(0).toUpperCase();
+            }
+        }
+
+        // ─── Sidebar ───
+        function openSidebar() { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); }
+        function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('show'); }
+        hamburgerBtn.onclick = openSidebar;
+        sidebarOverlay.onclick = closeSidebar;
+
+        // ─── Avatar click (from sidebar) ───
+        avatarBtn.onclick = function() { openSettings(); };
+
+        // ─── Subjects ───
+        function renderSubjects() {
+            subjectList.innerHTML = '';
+            SUBJECTS.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'subject-item' + (s.id === currentSubject ? ' active' : '');
+                div.innerHTML = `<span class="icon">${s.icon}</span><span>${s.label}</span>`;
+                div.dataset.id = s.id;
+                div.onclick = () => selectSubject(s.id);
+                subjectList.appendChild(div);
+            });
+        }
+
+        function highlightSubject(id) {
+            subjectList.querySelectorAll('.subject-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === id);
+            });
+        }
+
+        async function selectSubject(id) {
+            currentSubject = id;
+            localStorage.setItem('aiteacher_subject', id);
+            highlightSubject(id);
+            const s = SUBJECTS.find(x => x.id === id);
+            subjLabel.textContent = `${s.icon} ${s.label}`;
+            chat.innerHTML = '';
+            status.textContent = '';
+            inp.disabled = false; btn.disabled = false;
+            closeSidebar();
+            try {
+                const r = await fetch(`/api/history/${currentUser}/${id}`);
+                if (r.ok) {
+                    const msgs = await r.json();
+                    if (msgs.length === 0) {
+                        showEmptyState(s);
+                    } else {
+                        msgs.forEach(m => renderMsg(m));
+                        setTimeout(() => {
+                            document.querySelectorAll('.msg.a').forEach(el => renderRich(el));
+                        }, 150);
+                    }
+                    chat.scrollTop = chat.scrollHeight;
+                } else {
+                    showEmptyState(s);
+                }
+            } catch {
+                showEmptyState(s);
+            }
+        }
+
+        function showEmptyState(s) {
+            chat.innerHTML = `
+                <div class="empty-state">
+                    <div class="big-icon">${s.icon}</div>
+                    <h3>${s.label}</h3>
+                    <p>Задайте вопрос — и AI-учитель поможет вам разобраться с темой</p>
+                </div>
+            `;
+        }
+
+        function stripLatexDelims(text) {
+            return text.replace(/\\\(/g, '').replace(/\\\)/g, '').replace(/\\\[/g, '').replace(/\\\]/g, '');
+        }
+
+        function renderLatexInline(el) {
+            if (typeof katex === 'undefined') return;
+            const walk = document.createTreeWalker(el, 4, null, false);
+            const nodes = [];
+            let node;
+            while (node = walk.nextNode()) nodes.push(node);
+            nodes.forEach(textNode => {
+                const text = textNode.textContent;
+                const parts = [];
+                let lastIdx = 0, match;
+                const re = /\\\((.+?)\\\)/g;
+                while ((match = re.exec(text)) !== null) {
+                    if (match.index > lastIdx) parts.push(document.createTextNode(text.slice(lastIdx, match.index)));
+                    try {
+                        const html = katex.renderToString(match[1], {displayMode: false, throwOnError: false});
+                        const span = document.createElement('span');
+                        span.innerHTML = html;
+                        parts.push(span);
+                    } catch(e) {
+                        parts.push(document.createTextNode(match[0]));
+                    }
+                    lastIdx = match.index + match[0].length;
+                }
+                if (lastIdx < text.length) parts.push(document.createTextNode(text.slice(lastIdx)));
+                if (parts.length > 0) {
+                    const frag = document.createDocumentFragment();
+                    parts.forEach(p => frag.appendChild(p));
+                    textNode.parentNode.replaceChild(frag, textNode);
+                }
+            });
+            el.querySelectorAll('p, div, span').forEach(p => {
+                p.innerHTML = p.innerHTML.replace(/\\\[(.+?)\\\]/g, (_, formula) => {
+                    try {
+                        return katex.renderToString(formula, {displayMode: true, throwOnError: false});
+                    } catch(e) { return _; }
+                });
+            });
+        }
+
+        // ─── Render Message ───
+        function renderRich(el) {
+            try {
+                if (typeof renderMathInElement === 'function') {
+                    renderMathInElement(el, {
+                        delimiters: [
+                            {left: '\\(', right: '\\)', display: false},
+                            {left: '\\[', right: '\\]', display: true}
+                        ],
+                        throwOnError: false
+                    });
+                }
+                // manual pass for leftover/ missed delimiters
+                if (typeof katex !== 'undefined') {
+                    renderLatexInline(el);
+                } else {
+                    // KaTeX not loaded — strip LaTeX delimiters so raw code is readable
+                    el.querySelectorAll('.katex, .katex-display').forEach(e => e.remove());
+                    const walk = document.createTreeWalker(el, 4, null, false);
+                    let node;
+                    while (node = walk.nextNode()) {
+                        node.textContent = stripLatexDelims(node.textContent);
+                    }
+                }
+                el.querySelectorAll('pre code.language-math').forEach(c => {
+                    try {
+                        if (typeof katex !== 'undefined') {
+                            const out = katex.renderToString(c.textContent, {displayMode: true, throwOnError: false});
+                            const pre = c.closest('pre');
+                            if (pre) pre.outerHTML = out;
+                        } else {
+                            const pre = c.closest('pre');
+                            if (pre) {
+                                const txt = document.createElement('span');
+                                txt.className = 'latex-fallback';
+                                txt.textContent = stripLatexDelims(c.textContent);
+                                pre.replaceWith(txt);
+                            }
+                        }
+                    } catch(e) {}
+                });
+                if (typeof hljs !== 'undefined') {
+                    el.querySelectorAll('pre code:not(.language-math)').forEach(c => hljs.highlightElement(c));
+                }
+            } catch(e) {
+                // полный fallback — ничего не сломалось
+            }
+        }
+
+        function protectLatex(text) {
+            return text
+                .replace(/\\\(/g, '\\\\(')
+                .replace(/\\\)/g, '\\\\)')
+                .replace(/\\\[/g, '\\\\[')
+                .replace(/\\\]/g, '\\\\]');
+        }
+
+        function renderMsg(m, animate = false) {
+            const empty = chat.querySelector('.empty-state');
+            if (empty) empty.remove();
+            const d = document.createElement('div');
+            d.className = `msg ${m.role === 'user' ? 'u' : 'a'}`;
+            if (animate) d.style.animation = 'fadeIn 0.2s ease';
+
+            const content = m.content || '';
+            try {
+                const html = marked.parse(protectLatex(content));
+                d.innerHTML = DOMPurify.sanitize(html);
+            } catch(e) {
+                d.innerHTML = `<span class="render-error">⚠️ Ошибка рендеринга</span> ${DOMPurify.sanitize(content)}`;
+            }
+
+            chat.appendChild(d);
+            if (m.role === 'a') renderRich(d);
+            chat.scrollTop = chat.scrollHeight;
+            return d;
+        }
+
+        // ─── Chat ───
+        function addMsg(role, text, animate = true) {
+            const d = renderMsg({role, content: text, attachments: []}, animate);
+            return d;
+        }
+
+        // ─── Attachments ───
+        attachBtn.onclick = () => fileInput.click();
+
+        fileInput.addEventListener('change', async () => {
+            const files = fileInput.files;
+            for (const file of files) {
+                await uploadAndAttach(file);
+            }
+            fileInput.value = '';
+        });
+
+        async function uploadAndAttach(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const r = await fetch('/api/upload', { method: 'POST', body: formData });
+                if (r.ok) {
+                    const data = await r.json();
+                    attachments.push(data.url);
+                    addAttachChip(file, data.url);
+                }
+            } catch {}
+        }
+
+        function addAttachChip(file, url) {
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            const isImage = file.type.startsWith('image/');
+            if (isImage) {
+                const img = document.createElement('img');
+                img.className = 'preview-thumb';
+                img.src = URL.createObjectURL(file);
+                chip.appendChild(img);
+            } else {
+                const span = document.createElement('span');
+                span.textContent = '📎';
+                chip.appendChild(span);
+            }
+            const name = document.createElement('span');
+            name.textContent = file.name.length > 20 ? file.name.slice(0, 17) + '...' : file.name;
+            chip.appendChild(name);
+            const rm = document.createElement('span');
+            rm.className = 'remove';
+            rm.textContent = '✕';
+            rm.onclick = () => {
+                attachments = attachments.filter(a => a !== url);
+                chip.remove();
+            };
+            chip.appendChild(rm);
+            attachPreview.appendChild(chip);
+        }
+
+        // ─── Ctrl+V Paste ───
+        inp.addEventListener('paste', async (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) {
+                        file.name = 'clipboard_' + Date.now() + '.png';
+                        await uploadAndAttach(file);
+                    }
+                    break;
+                }
+            }
+        });
+
+        // ─── New Chat ───
+        newChatBtn.onclick = async function() {
+            if (!currentUser || !currentSubject) return;
+            try {
+                await fetch(`/api/history/${currentUser}/${currentSubject}`, { method: 'DELETE' });
+            } catch {}
+            const s = SUBJECTS.find(x => x.id === currentSubject);
+            chat.innerHTML = '';
+            showEmptyState(s);
+            status.textContent = 'Чат очищен';
+            inp.disabled = false; btn.disabled = false; inp.focus();
+        };
+
+        // ─── Send ───
+        inp.addEventListener('keydown', e => e.key === 'Enter' && send());
+        btn.onclick = send;
+
+        async function send() {
+            const txt = inp.value.trim();
+            if ((!txt && attachments.length === 0) || sending || !currentUser || !currentSubject) return;
+            sending = true;
+
+            const msgAttachments = [...attachments];
+            attachments = [];
+            attachPreview.innerHTML = '';
+
+            const d = addMsg('u', txt || '[файл]');
+            inp.value = ''; inp.disabled = true; btn.disabled = true;
+            status.textContent = 'Анализ запроса...';
+
+            const aiDiv = addMsg('a', '', false);
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        username: currentUser,
+                        subject: currentSubject,
+                        message: txt,
+                        attachments: msgAttachments
+                    })
+                });
+                if (!res.ok) { aiDiv.textContent = '⚠️ Ошибка соединения.'; reset(); return; }
+
+                status.textContent = 'Генерация ответа...';
+                const reader = res.body.getReader();
+                const dec = new TextDecoder();
+                let buf = '', mdAccum = '';
+                let renderTimer = null;
+                function flushRender() {
+                    renderTimer = null;
+                    try {
+                        const html = marked.parse(protectLatex(mdAccum));
+                        aiDiv.innerHTML = DOMPurify.sanitize(html);
+                        renderRich(aiDiv);
+                    } catch(e) {
+                        aiDiv.innerHTML = `<span class="render-error">⚠️ Ошибка рендеринга</span> ` + DOMPurify.sanitize(mdAccum);
+                    }
+                }
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    buf += dec.decode(value, {stream: true});
+                    const lines = buf.split('\n');
+                    buf = lines.pop() || '';
+                    for (const l of lines) {
+                        if (l.startsWith('data: ')) {
+                            try {
+                                const dJson = JSON.parse(l.slice(6));
+                                if (dJson.content) {
+                                    mdAccum += dJson.content;
+                                    if (!renderTimer) renderTimer = setTimeout(flushRender, 30);
+                                }
+                                if (dJson.done) {
+                                    if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+                                    flushRender();
+                                    status.textContent = 'Готово.';
+                                }
+                            } catch {}
+                        }
+                    }
+                }
+                if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+                flushRender();
+            } catch {
+                aiDiv.textContent = '⚠️ Ошибка соединения.';
+            }
+            reset();
+        }
+        function reset() { sending = false; inp.disabled = false; btn.disabled = false; inp.focus(); }
+
+        // ─── Settings ───
+        function openSettings() {
+            settingsModal.classList.add('show');
+            // Load current accent color
+            const currentColor = localStorage.getItem('aiteacher_accent') || '#2563eb';
+            accentColorPicker.value = currentColor;
+            accentColorLabel.textContent = currentColor;
+            // Load avatar preview
+            const avImg = userAvatar.querySelector('img');
+            if (avImg) {
+                settingsAvatarPreview.innerHTML = `<img src="${avImg.src}" alt="avatar">`;
+            } else {
+                settingsAvatarPreview.textContent = currentUser.charAt(0).toUpperCase();
+            }
+        }
+
+        settingsCloseBtn.onclick = () => settingsModal.classList.remove('show');
+        settingsBtn.onclick = openSettings;
+
+        settingsAvatarBtn.onclick = () => avatarInput.click();
+
+        avatarInput.addEventListener('change', async () => {
+            const file = avatarInput.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('username', currentUser);
+            formData.append('file', file);
+            try {
+                const r = await fetch('/api/avatar', { method: 'POST', body: formData });
+                if (r.ok) {
+                    const data = await r.json();
+                    updateAvatar(data.url);
+                    const avImg = userAvatar.querySelector('img');
+                    if (avImg) {
+                        settingsAvatarPreview.innerHTML = `<img src="${avImg.src}" alt="avatar">`;
+                    }
+                }
+            } catch {}
+            avatarInput.value = '';
+        });
+
+        accentColorPicker.addEventListener('input', () => {
+            const color = accentColorPicker.value;
+            accentColorLabel.textContent = color;
+            applyAccentColor(color);
+        });
+
+        accentColorPicker.addEventListener('change', async () => {
+            const color = accentColorPicker.value;
+            localStorage.setItem('aiteacher_accent', color);
+            try {
+                await fetch('/api/accent-color', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({username: currentUser, color})
+                });
+            } catch {}
+        });
+
+        // ─── Support ───
+        supportBtn.onclick = () => {
+            supportSubject.value = '';
+            supportMessage.value = '';
+            supportOk.style.display = 'none';
+            supportModal.classList.add('show');
+        };
+        supportCancelBtn.onclick = () => supportModal.classList.remove('show');
+
+        supportSendBtn.onclick = async () => {
+            const subj = supportSubject.value.trim();
+            const msg = supportMessage.value.trim();
+            if (!subj || !msg) return;
+            supportSendBtn.disabled = true;
+            supportSendBtn.textContent = 'Отправка...';
+            supportOk.style.display = 'none';
+            try {
+                const r = await fetch('/api/support', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({username: currentUser, subject: subj, message: msg})
+                });
+                if (r.ok) {
+                    supportOk.style.display = 'block';
+                    supportSubject.value = '';
+                    supportMessage.value = '';
+                }
+            } catch {}
+            supportSendBtn.disabled = false;
+            supportSendBtn.textContent = 'Отправить';
+        };
+
+        // ─── Logout ───
+        logoutBtn.onclick = function() {
+            localStorage.removeItem('aiteacher_user');
+            localStorage.removeItem('aiteacher_subject');
+            currentUser = '';
+            currentSubject = '';
+            attachments = [];
+            attachPreview.innerHTML = '';
+            chat.innerHTML = '';
+            showLogin();
+            loginInput.value = '';
+            passwordInput.value = '';
+            loginInput.focus();
+        };
+
+        // ─── Boot ───
+        if (currentUser) {
+            initApp();
+        } else {
+            showLogin();
+            loginInput.focus();
+        }
+
+        // ─── Keyboard shortcut ───
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeSidebar();
+                settingsModal.classList.remove('show');
+                supportModal.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
