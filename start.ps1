@@ -44,11 +44,11 @@ if (-not $ollamaRunning) {
 }
 
 Write-Host "Starting AITEACHER server..." -ForegroundColor Yellow
-$uvicornLog = Join-Path $rootDir "uvicorn.log"
+$uvicornOut = Join-Path $rootDir "uvicorn_out.log"
+$uvicornErr = Join-Path $rootDir "uvicorn_err.log"
 $activatePath = Join-Path $rootDir "venv\Scripts\Activate.ps1"
 $mainPath = Join-Path $rootDir "main.py"
-$uvicornCmd = "powershell -NoLogo -NoProfile -Command `"& { . '$activatePath'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload }`""
-$uvicornProc = Start-Process -FilePath "powershell" -ArgumentList "-NoLogo -NoProfile -Command `". '$activatePath'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload`"" -WindowStyle Hidden -PassThru -RedirectStandardOutput $uvicornLog -RedirectStandardError $uvicornLog
+$uvicornProc = Start-Process -FilePath "powershell" -ArgumentList "-NoLogo -NoProfile -Command `". '$activatePath'; uvicorn main:app --host 0.0.0.0 --port 8000 --reload`"" -WindowStyle Hidden -PassThru -RedirectStandardOutput $uvicornOut -RedirectStandardError $uvicornErr
 
 Start-Sleep -Seconds 5
 $retry = 0
@@ -62,8 +62,10 @@ while ($retry -lt 30) {
 }
 if ($retry -ge 30) {
     Write-Host "ERROR: Server did not start in 35 seconds." -ForegroundColor Red
-    Write-Host "Check log: $uvicornLog" -ForegroundColor Yellow
-    Get-Content -Path $uvicornLog -Tail 20 -ErrorAction SilentlyContinue
+    Write-Host "Check logs:" -ForegroundColor Yellow
+    Write-Host "  stdout: $uvicornOut" -ForegroundColor Yellow
+    Write-Host "  stderr: $uvicornErr" -ForegroundColor Yellow
+    Get-Content -Path $uvicornErr -Tail 20 -ErrorAction SilentlyContinue
     exit 1
 }
 Write-Host "AITEACHER server is running" -ForegroundColor Green
