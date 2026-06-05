@@ -7,13 +7,11 @@ $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $rootDir
 
-# в”Ђв”Ђв”Ђ Check venv в”Ђв”Ђв”Ђ
 if (-not (Test-Path "venv\Scripts\Activate.ps1")) {
     Write-Host "ERROR: venv not found. Run: python -m venv venv" -ForegroundColor Red
     exit 1
 }
 
-# в”Ђв”Ђв”Ђ Ollama в”Ђв”Ђв”Ђ
 $ollamaRunning = $false
 try {
     $resp = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -Method GET -TimeoutSec 3 -ErrorAction Stop
@@ -45,7 +43,6 @@ if (-not $ollamaRunning) {
     $ollamaProc = $null
 }
 
-# в”Ђв”Ђв”Ђ Uvicorn в”Ђв”Ђв”Ђ
 Write-Host "Starting AITEACHER server..." -ForegroundColor Yellow
 $uvicornJob = Start-Job -ScriptBlock {
     param($dir)
@@ -70,7 +67,6 @@ if ($retry -ge 15) {
 }
 Write-Host "AITEACHER server is running" -ForegroundColor Green
 
-# в”Ђв”Ђв”Ђ Cloudflare Tunnel в”Ђв”Ђв”Ђ
 $cfProc = $null
 $publicUrl = $null
 if (-not $NoTunnel) {
@@ -100,16 +96,15 @@ if (-not $NoTunnel) {
     }
 }
 
-# в”Ђв”Ђв”Ђ Show info в”Ђв”Ђв”Ђ
 $localIp = & python get_ip.py 2>$null
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "     AITEACHER вЂ” Server is running" -ForegroundColor Cyan
+Write-Host "     AITEACHER - Server is running" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  Local:               http://localhost:8000" -ForegroundColor White
+Write-Host "  Local access:        http://localhost:8000" -ForegroundColor White
 if ($localIp) {
-    Write-Host "  LAN:                 http://$localIp`:8000" -ForegroundColor White
+    Write-Host "  LAN access:          http://$localIp`:8000" -ForegroundColor White
 }
 if ($publicUrl) {
     Write-Host "  Public (internet):   $publicUrl" -ForegroundColor Green
@@ -125,7 +120,6 @@ if (-not $NoBrowser) {
 Write-Host "Press Enter to stop all processes..." -ForegroundColor Yellow
 $null = Read-Host
 
-# в”Ђв”Ђв”Ђ Cleanup в”Ђв”Ђв”Ђ
 Write-Host "Stopping processes..." -ForegroundColor Yellow
 if ($cfProc -and -not $cfProc.HasExited) {
     Stop-Process -Id $cfProc.Id -Force -ErrorAction SilentlyContinue
